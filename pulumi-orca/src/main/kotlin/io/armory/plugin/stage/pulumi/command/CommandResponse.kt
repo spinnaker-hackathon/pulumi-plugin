@@ -5,5 +5,5 @@ package io.armory.plugin.stage.pulumi.command
  */
 data class CommandResponse(
         var exitCode: Int?,
-        var result: String?
+        var result: String
 )

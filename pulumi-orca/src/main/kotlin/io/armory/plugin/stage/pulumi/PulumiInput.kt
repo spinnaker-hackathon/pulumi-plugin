@@ -6,6 +6,7 @@ package io.armory.plugin.stage.pulumi
  */
 data class PulumiInput(
         var cloudProvider: String,
-        var githubRepository: String,
-        var githubBranch: String
+        var githubRepository: String, // https://github.com/spinnaker-hackathon/pulumi-plugin
+        var githubBranch: String, // master
+        var pulumiStack: String //dev
 )

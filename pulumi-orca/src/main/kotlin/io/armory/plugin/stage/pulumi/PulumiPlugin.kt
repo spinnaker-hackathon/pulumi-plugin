@@ -1,5 +1,6 @@
 package io.armory.plugin.stage.pulumi
 
+import com.google.gson.Gson
 import com.netflix.spinnaker.orca.api.simplestage.SimpleStage
 import com.netflix.spinnaker.orca.api.simplestage.SimpleStageInput
 import com.netflix.spinnaker.orca.api.simplestage.SimpleStageOutput
@@ -7,7 +8,9 @@ import com.netflix.spinnaker.orca.api.simplestage.SimpleStageStatus
 import io.armory.plugin.stage.pulumi.command.PulumiCli
 import io.armory.plugin.stage.pulumi.exception.SimpleStageException
 import io.armory.plugin.stage.pulumi.exception.SimpleStageExceptionDetails
+import io.armory.plugin.stage.pulumi.model.Account
 import io.armory.plugin.stage.pulumi.model.Credentials
+import io.armory.plugin.stage.pulumi.model.PulumiCredentials
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.pf4j.Extension
@@ -80,6 +83,8 @@ class PulumiStage(val configuration: PulumiConfig) : SimpleStage<PulumiInput> {
             return stageOutput
         }
 
+        storePulumiCredentials(configuration.accounts)
+
         val workspace = createWorkspace()
         val githubPath = URI(stageInput.value.githubRepository).path
         val repositoryInfo = stageInput.value.githubRepository.substring(stageInput.value.githubRepository.lastIndexOf(githubPath) +1).split("/")
@@ -93,16 +98,27 @@ class PulumiStage(val configuration: PulumiConfig) : SimpleStage<PulumiInput> {
             return stageOutput
         }
 
+        val buildCli = PulumiCli()
+        buildCli.setCredentials(getCredentials(credentials))
+        buildCli.setPath(workspace + "/" + repositoryInfo[1] + "-" + stageInput.value.githubBranch)
+        buildCli.build("Typescript")
+
+        val cliStack = PulumiCli()
+        cliStack.setCredentials(getCredentials(credentials))
+        cliStack.setPath(workspace + "/" + repositoryInfo[1] + "-" + stageInput.value.githubBranch)
+        cliStack.selectStack(stageInput.value.pulumiStack)
+
         val cli = PulumiCli()
         cli.setCredentials(getCredentials(credentials))
         cli.setPath(workspace + "/" + repositoryInfo[1] + "-" + stageInput.value.githubBranch)
-        cli.build("Typescript")
         val resultCli = cli.up()
 
         val response = if(resultCli.exitCode != 0)  {
-             SimpleStageStatus.TERMINAL
+            context.exception = SimpleStageException(SimpleStageExceptionDetails("", "Pulumi up fail.", listOf(resultCli.result)))
+            SimpleStageStatus.TERMINAL
         } else {
-             SimpleStageStatus.SUCCEEDED
+            output.result = resultCli.result
+            SimpleStageStatus.SUCCEEDED
         }
 
         stageOutput.output = output
@@ -123,7 +139,7 @@ class PulumiStage(val configuration: PulumiConfig) : SimpleStage<PulumiInput> {
     }
 
     private fun getCredentials(credentials: Credentials): Map<String, String?> {
-        return mapOf("AWS_ACCESS_KEY_ID" to credentials.secretKeyId,"AWS_SECRET_ACCESS_KEY" to credentials.secretAccessKey )
+        return mapOf("AWS_ACCESS_KEY_ID" to credentials.secretKeyId,"AWS_SECRET_ACCESS_KEY" to credentials.secretAccessKey, "AWS_SESSION_TOKEN" to System.getenv("AWS_SESSION_TOKEN") )
     }
 
     private fun downloadGithubRepository(repository: String, branch: String, workspace: String): Boolean {
@@ -159,5 +175,17 @@ class PulumiStage(val configuration: PulumiConfig) : SimpleStage<PulumiInput> {
                 .command("unzip", zipFileName, "-d", destDir)
                 .start()
                 .waitFor()
+    }
+
+    private fun storePulumiCredentials(account: Account) {
+
+        val accessTokens = mapOf(account.serverUri to account.accessToken)
+        val accounts = mapOf(account.serverUri to account)
+        val pulumiCredentials = PulumiCredentials(account.serverUri, accessTokens, accounts)
+
+        val home = System.getProperty("user.home")
+        val pulumiPath = "/.pulumi/credentials.json"
+        val file=File(home + pulumiPath)
+        file.writeText(Gson().toJson(pulumiCredentials))
     }
 }
