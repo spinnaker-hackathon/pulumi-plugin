@@ -11,14 +11,18 @@ class PulumiCli {
     private val commandTimeout = 30L
     private var path = "/home/spinnaker"
 
+    fun selectStack(stack: String): CommandResponse {
+        return exec(listOf("pulumi","stack","select", stack))
+    }
+
     fun up(): CommandResponse {
-        return exec(listOf("pulumi","up","--yes"))
+        return exec(listOf("pulumi","up","--yes", "--non-interactive"))
     }
 
     fun build(language: String): CommandResponse {
         return when(language){
             "Typescript" -> exec(listOf("npm", "install"))
-            else -> CommandResponse(null, null)
+            else -> CommandResponse(null, "")
         }
     }
 

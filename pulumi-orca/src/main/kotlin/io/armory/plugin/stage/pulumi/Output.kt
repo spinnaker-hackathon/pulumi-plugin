@@ -5,5 +5,6 @@ package io.armory.plugin.stage.pulumi
  * In this case, the output contains the actual number of seconds the stage waits.
  */
 data class Output(
-        var exitCode: Int? = null
+        var exitCode: Int? = null,
+        var result: String? = null
 )

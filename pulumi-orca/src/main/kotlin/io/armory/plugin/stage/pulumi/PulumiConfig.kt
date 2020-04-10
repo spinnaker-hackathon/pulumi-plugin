@@ -1,6 +1,7 @@
 package io.armory.plugin.stage.pulumi
 
 import com.netflix.spinnaker.kork.plugins.api.ExtensionConfiguration
+import io.armory.plugin.stage.pulumi.model.Account
 import io.armory.plugin.stage.pulumi.model.Credentials
 
 /**
@@ -10,5 +11,6 @@ import io.armory.plugin.stage.pulumi.model.Credentials
  */
 @ExtensionConfiguration("pulumi")
 data class PulumiConfig(
-        var credentials: Credentials
+        var credentials: Credentials,
+        var accounts: Account
 )
