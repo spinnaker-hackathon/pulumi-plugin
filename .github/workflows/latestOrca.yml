@@ -1,0 +1,51 @@
+name: Latest Orca
+
+on:
+  schedule:
+    - cron:  '*/15 * * * *'
+
+jobs:
+  test_latest:
+    name: Test Latest
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+      - name: get dependency name to update
+        id: dependency_name
+        run: |
+          echo ::set-output name=dependency::orca
+      - name: get current version
+        id: get_current
+        run: |
+          echo ::set-output name=version::$(cat gradle.properties | grep "${{ steps.dependency_name.outputs.dependency }}Version" | cut -d'=' -f2)
+      - name: get latest release version
+        id: get_latest_release
+        run: |
+          echo ::set-output name=version::$(curl -XGET -u "${{ secrets.USERNAME }}:${{ secrets.TOKEN }}" https://api.github.com/repos/spinnaker/${{ steps.dependency_name.outputs.dependency }}/releases/latest | jq '.tag_name' | cut -d 'v' -f2 | cut -d '"' -f1)
+      - name: get desired version
+        id: get_desired
+        run: |
+          echo -e "${{ steps.get_current.outputs.version }}\n${{ steps.get_latest_release.outputs.version }}" > updateVersions.txt
+          echo ::set-output name=version::$(sort -t '.' -k 1,1 -k 2,2 -k 3,3 -k 4,4 -g -r updateVersions.txt | head -n 1)
+      - name: test desired version
+        if: steps.get_current.outputs.version != steps.get_desired.outputs.version
+        run: |
+          sed -i -e 's/${{ steps.dependency_name.outputs.dependency }}Version=${{ steps.get_current.outputs.version }}/${{ steps.dependency_name.outputs.dependency }}Version=${{ steps.get_desired.outputs.version }}/g' gradle.properties
+          ./gradlew test
+      - name: notify build failure
+        if: failure()
+        run: |
+          curl -XPOST -u "${{ secrets.USERNAME }}:${{ secrets.TOKEN }}" -H "Accept: application/vnd.github.everest-preview+json" -H "Content-Type: application/json" https://api.github.com/repos/spinnaker-plugin-examples/examplePluginRepository/dispatches --data "{\"event_type\": \"onPluginDepUpdateFailure\", \"client_payload\": {\"workflow\": \"${GITHUB_WORKFLOW}\", \"repo\": \"${GITHUB_REPOSITORY}\", \"dependency\": \"${{ steps.dependency_name.outputs.dependency }}\", \"version\": \"${{ steps.get_desired.outputs.version }}\"}}"
+      - name: commit gradle properties
+        if: (steps.get_current.outputs.version != steps.get_desired.outputs.version) && success()
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add gradle.properties
+          git commit -m "update ${{ steps.dependency_name.outputs.dependency }} to ${{ steps.get_desired.outputs.version }}"
+      - name: push changes
+        if: (steps.get_current.outputs.version != steps.get_desired.outputs.version) && success()
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
