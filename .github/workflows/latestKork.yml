@@ -1,8 +1,6 @@
 name: Latest Kork
 
 on:
-  schedule:
-    - cron:  '*/15 * * * *'
 
 jobs:
   test_latest:
