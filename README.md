@@ -1,3 +1,7 @@
+# Thank you for your interest in this hackathon project. Please visit the official repository for the Pulumi [plugin](https://github.com/pulumi/spinnaker-preconfigured-job-plugin) for instructions on how to install/use it in your Spinnaker instance.
+
+-------
+
 # pulumi-plugin
 
 https://www.pulumi.com/
