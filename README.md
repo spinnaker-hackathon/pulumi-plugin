@@ -1,4 +1,4 @@
-# Thank you for your interest in this plugin. Please visit official Pulumi [plugin repository](https://github.com/pulumi/spinnaker-preconfigured-job-plugin) instead.
+# Thank you for your interest in this plugin. Please visit the official Pulumi [plugin repository](https://github.com/pulumi/spinnaker-preconfigured-job-plugin) instead.
 
 -------
 
